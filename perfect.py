@@ -1,4 +1,5 @@
-import numpy as np
+﻿import numpy as np
+from scipy.special import jn
 
 from six import string_types, iteritems
 from six.moves import range
@@ -35,10 +36,9 @@ class Vocab(object):
 
     def __init__(self, **kwargs):
         self.count = 0
-        self.__dict__.update(kwargs)  # 将字典添加到，添加到指定dict的字典，没有返回值
-        """假设有一个带有构造函数(或其他函数)的类，该类接受可变数量的参数，然后有条件地将它们设置为类属性。"""
+        self.__dict__.update(kwargs)
 
-    def __lt__(self, other):  # used for sorting in a priority queue用来比较大小的
+    def __lt__(self, other):  # used for sorting in a priority queue
         return self.count < other.count
 
     def __str__(self):
@@ -49,15 +49,14 @@ class Vocab(object):
 class KeyedVectors(object):
     """
     Base class to contain vectors and vocab for any set of vectors which are each associated with a key.
-基类，包含与键关联的向量集的向量和vocab
     """
 
     def __init__(self):
-        self.syn0 = []  # 训练向量
-        self.vocab = {}  # 字典，存储词-->索引值
-        self.index2word = []  # 索引和单词对应关系
-        self.vector_size = None  # 向量的维度
-        self.syn0norm = None  # 模？？
+        self.syn0 = []
+        self.vocab = {}
+        self.index2word = []
+        self.vector_size = None
+        self.syn0norm = None
 
     def wv(self):
         return self
@@ -67,12 +66,8 @@ class KeyedVectors(object):
         kwargs['ignore'] = kwargs.get('ignore', ['syn0norm'])
         self.save(*args, **kwargs)
 
-    # def __contains__(self, word):
-    #   return word in self.vocab
-
 
 # def save_word2vec_format(self, fname, fvocab=None, binary=False, total_vec=None):
-
 
 MAX_WORDS_IN_BATCH = 1000
 """迭代读取句子"""
@@ -98,10 +93,6 @@ class read_word(object):
 
 
 class Word2Vec(object):
-    '''def __init__(self, sentences=None, size=100, alpha=0.025, window=5, min_count=5,
-                 max_vocab_size=None, sample=1e-3, seed=1, workers=3, min_alpha=0.0001,
-                 sg=0, hs=0, negative=5, cbow_mean=1, hashfxn=hash, iter=5, null_word=0,
-                 trim_rule=None, sorted_vocab=1, batch_words=MAX_WORDS_IN_BATCH, compute_loss=False):'''
 
     def __init__(self, sentences=None, size=100, alpha=0.025, window=5, min_count=5,
                  max_vocab_size=None, sample=1e-3, seed=1,
@@ -110,7 +101,7 @@ class Word2Vec(object):
         self.initialize_word_vectors()
 
         # self.sg = int(sg)
-        self.cum_table = None  # for negative sampling负采样表
+        self.cum_table = None  # for negative sampling
         self.vector_size = int(size)
         self.layer1_size = int(size)
         self.alpha = float(alpha)
@@ -147,7 +138,7 @@ class Word2Vec(object):
             '''
 
     def initialize_word_vectors(self):
-        self.wv = KeyedVectors()  # 实例化
+        self.wv = KeyedVectors()
 
     def make_cum_table(self, power=0.75, domain=2 ** 31 - 1):
         vocab_size = len(self.wv.index2word)
@@ -184,12 +175,12 @@ class Word2Vec(object):
 
     def scan_vocab(self, sentences, progress_per=10000, trim_rule=None):
         """Do an initial scan of all words appearing in sentences."""
-        sentence_no = -1  # 保存扫描完成的句子的数量
-        total_words = 0  # 保存出现过的单词的总数（不去重）
+        sentence_no = -1
+        total_words = 0
         min_reduce = 1
-        vocab = defaultdict(int)  # 初始化为字典
+        vocab = defaultdict(int)
         checked_string_types = 0
-        for sentence_no, sentence in enumerate(sentences):  # 取出每个句子，
+        for sentence_no, sentence in enumerate(sentences):
             '''if not checked_string_types:
                 if isinstance(sentence, string_types):
                      logger.warning(
@@ -208,9 +199,9 @@ class Word2Vec(object):
             '''if self.max_vocab_size and len(vocab) > self.max_vocab_size:
                     utils.prune_vocab(vocab, min_reduce, trim_rule=trim_rule)  # prune_vocab？？？？
                     min_reduce += 1'''
-        self.corpus_count = sentence_no + 1  # 保存句子数
-        self.raw_vocab = vocab  # 保存单词表
-        return total_words  # 返回单词总数
+        self.corpus_count = sentence_no + 1
+        self.raw_vocab = vocab
+        return total_words
 
     def scale_vocab(self, min_count=1, sample=None,
                     trim_rule=None, update=False):
@@ -228,9 +219,8 @@ class Word2Vec(object):
             for word, v in iteritems(self.raw_vocab):
                 # print(self.raw_vocab)
                 if self.raw_vocab[word] > min_count:
-                    retain_words.append(word)  # 添加单词
-                    retain_total += v  # 添加次数
-                    # 为每一个单词创建一个vocab类，传入词频和下标
+                    retain_words.append(word)
+                    retain_total += v
                     self.wv.vocab[word] = Vocab(count=v, index=len(self.wv.index2word))
                     self.wv.index2word.append(word)
         else:
@@ -275,10 +265,15 @@ class Word2Vec(object):
         # randomize weights vector by vector, rather than materializing a huge random matrix in RAM at once
         for i in range(len(self.wv.vocab)):
             r = (np.random.random(1) - 0.5) / self.vector_size
-            theta = np.random.random(1) * 2 * math.pi
+            theta = np.random.random(self.vector_size - 1) * 2 * math.pi
             rand_vector = []
-            rand_vector.append(r * math.sin(theta))
-            rand_vector.append(r * math.cos(theta))
+            for j in range(self.vector_size):
+                x = 1
+                for k in range(j):
+                    x *= math.sin(theta[k])
+                if j != self.vector_size - 1:
+                    x *= math.cos(theta[j])
+                rand_vector.append(x)
             self.wv.syn0[i] = rand_vector
 
         '''for i in range(len(self.wv.vocab)):
@@ -329,16 +324,11 @@ class Word2Vec(object):
         once = random.RandomState(self.hashfxn(seed_string) & 0xffffffff)
         return (once.rand(self.vector_size) - 0.5) / self.vector_size
 
-    def train(self, model_, Gpar, Z, sentences, G, link,word_num=0, total_examples=None, total_words=None,
+    def train(self, model_, Gpar, Z, sentences, G, link, word_num=0, total_examples=None, total_words=None,
               epochs=iter, start_alpha=None, end_alpha=None, word_count=0,
               queue_factor=2, report_delay=1.0, compute_loss=None, negative=10):
         print("Training...")
-        l1 = 0
-        l2 = 0
         starting_alpha = start_alpha or self.alpha
-        a = 0
-        b = 0
-        d = 0
         word = 0
         sentence_length = 0
         sentence_position = 0
@@ -348,10 +338,6 @@ class Word2Vec(object):
         deriv_syn0_tmp_arr = [0] * self.layer1_size
         deriv_syn1neg_tmp_arr = [0] * self.layer1_size
         deriv_syn0_poincare = [0] * self.layer1_size
-        deriv_syn1neg_poincare = [0] * self.layer1_size
-        map_tmp_arr = [0] * self.layer1_size
-        neu1 = [] * self.layer1_size
-        neu1e = [] * self.layer1_size
         next_random = 1
         word_count_actual = 0
         local_iter = epochs
@@ -361,23 +347,20 @@ class Word2Vec(object):
             for w in sentence:
                 line.append(w)
 
-        """R语言部分"""
         G = G
         if t == 0:
             numpy2ri.activate()
             MixGHD = importr("MixGHD")
             B = np.array(self.wv.syn0)
-            model= MixGHD.MGHD(data=B, G=G)
-            """返回的需要的list"""
+            model = MixGHD.MGHD(data=B, G=G)
             gpar = ro.r["slot"](model, "gpar")
             z = ro.r["slot"](model, "z")
-            """需要什么再写"""
         else:
             gpar = Gpar
             z = Z
 
         while True:
-            if word_count - last_word_count > 10000:  # 总共处理的点
+            if word_count - last_word_count > 10000:
                 word_count_actual += word_count - last_word_count
                 last_word_count = word_count
                 alpha = starting_alpha * (1 - word_count_actual / float(self.iter * self.train_count + 1))
@@ -386,28 +369,16 @@ class Word2Vec(object):
 
             if local_iter == 0:
                 break
-            """加入句子"""
-            line_count = 0
-            # print("迭代次数，-------"+str(local_iter))
 
             if sentence_length == 0:
-                '''迭代次数'''
                 print("local_iter--------------->", local_iter)
                 sen = []
                 while True:
                     v = line[t]
                     t = (t + 1) % len(line)
-                    # print("-----------------"+str(v))
-                    # print("sentence_lenght,append-------"+str(v))
-                    # print("SearchVocab------------------"""+str(hash_table.SearchVocab(list(v), vocab)))
-                    # print("hash值----->"+str(hash_table.GetWordHash(vocab_word[i])))
                     i = self.wv.vocab.get(v, -1)
 
-                    #print("i------------------->", i)
-                    # print("word------------------>"+str(word))
-                    # word =hash_table.SearchVocab(list(v),vocab
                     if i == -1:
-                        # print('word=-1,   continue')
                         continue
                     else:
                         word_count += 1
@@ -415,36 +386,28 @@ class Word2Vec(object):
 
                     if self.sample > 0:
                         ran = float((sqrt(self.wv.vocab[v].count / (self.sample * self.train_count)) + 1) * (
-                                    self.sample * self.train_count) /
+                                self.sample * self.train_count) /
                                     self.wv.vocab[v].count)
                         next_random = next_random * 25214903917 + 11
                         if ran < (next_random & 0xFFFF) / 65536:
                             continue
                         else:
-                            sen.append(int(word))  # 索引
+                            sen.append(int(word))
                             sentence_length += 1
-                        # print("word------------------>" + str(word))
-                        # print("sentence\n" + str(sentence_length))
                     if sentence_length >= MAX_SENTENCE_LENGTH:
-                        #print("sentence---------------------")
                         break
                 sentence_position = 0
-            # print(str(sen))
-            #print("word in sentence position-------------" + str(sentence_position))
             word = sen[sentence_position]
             self.train_count += 1
-            # print("word in sentence position-------------" + str(sen[sentence_position]))
-            # 初始化
             neu1 = []
             neu1e = []
-            for c in range(0, self.layer1_size): neu1.append(0)
-            # print("neul初始化------"+str(neu1))
-            for c in range(0, self.layer1_size):  neu1e.append(0)
+            for c in range(0, self.layer1_size):
+                neu1.append(0)
+            for c in range(0, self.layer1_size):
+                neu1e.append(0)
             next_random = next_random * 25214903917 + 11
             b = 0
-            #print('a+')
             for a in range(b, self.window * 2 + 1 - b):
-                #print('a=', a)
                 if a != self.window:
                     c = sentence_position - self.window + a
                     if c < 0:
@@ -452,13 +415,9 @@ class Word2Vec(object):
                     if c > len(sen) - 1:
                         continue
                     last_word = int(sen[c])
-                    # print("last_word--------------->"+str(last_word))
                     if last_word == -1:
                         print("last_word=-1")
                         continue
-                    # print(type(last_word))
-                    # print(type(layer1_size))
-                    # 相邻点的索引值
                     l1 = last_word
                     for c in range(0, self.layer1_size):  neu1e[c] = 0
                     if negative > 0:
@@ -468,31 +427,14 @@ class Word2Vec(object):
                                 label = 1
                             else:
                                 next_random = next_random * 25214903917 + 11
-                                # print(type(next_random))
-                                # target = table[int((next_random >> 16) % vocab.table_size)]# table按照概率取得词
                                 target = self.cum_table[np.random.randint(0, len(self.wv.index2word))]
                                 if target == 0: target = next_random % (len(self.wv.index2word) - 1) + 1  # ??
                                 if target == word:
-                                    # print("negative ，target=word")
                                     continue
                                 label = 0
-                            # 负采样的索引值
                             l2 = target
 
-                            hybolic_syn0_norm = 0
-                            hybolic_syn1neg_norm = 0
-                            hybolic_distance = 0
                             hybolic_sub_norm = 0
-                            deriv_syn0_tmp_cof = 0
-                            deriv_syn1neg_tmp_cof = 0
-                            '''计算过程
-                            内积'''
-                            # print("syno type------------->"+str(type(syn0[0]))+str(type(syn0[3])))
-                            # print("l1------------------>"+str(l1))
-                            # for i in range(0,100):
-                            # print(str(syn0[i]))
-
-                            # 相邻点
                             hybolic_syn0_norm = dotp(self.wv.syn0[l1], self.wv.syn0[l1])
                             hybolic_alpha = 1 - hybolic_syn0_norm
                             if hybolic_alpha < 0.0001:
@@ -502,7 +444,7 @@ class Word2Vec(object):
                                 for c in range(0, self.layer1_size): print("%f ", self.wv.syn0[c + l1])
                                 exit(1)
 
-                            hybolic_syn1neg_norm = dotp(self.syn1neg[l2] , self.syn1neg[l2])
+                            hybolic_syn1neg_norm = dotp(self.syn1neg[l2], self.syn1neg[l2])
                             if hybolic_syn1neg_norm >= 1.01:
                                 print("error: 2 - syn1neg_norm is %lf\n", hybolic_syn1neg_norm)
                                 exit(1)
@@ -520,87 +462,47 @@ class Word2Vec(object):
                             else:
                                 g = (label - expTable[
                                     int(((0 - hybolic_distance + MAX_EXP) * (
-                                                EXP_TABLE_SIZE / MAX_EXP / 2)))]) * self.alpha
+                                            EXP_TABLE_SIZE / MAX_EXP / 2)))]) * self.alpha
                             deriv_syn0_tmp_cof = dotp(self.wv.syn0[l1], self.syn1neg[l2])
                             deriv_syn0_tmp_cof = (
-                                                             hybolic_syn1neg_norm - 2 * deriv_syn0_tmp_cof + 1) / hybolic_alpha / hybolic_alpha
+                                                         hybolic_syn1neg_norm - 2 * deriv_syn0_tmp_cof + 1) / hybolic_alpha / hybolic_alpha
                             for c in range(0, self.layer1_size): deriv_syn0_tmp_arr[c] = self.wv.syn0[l1][
                                                                                              c] * deriv_syn0_tmp_cof
-                            for c in range(0, self.layer1_size): deriv_syn1neg_tmp_arr[c] = self.syn1neg[l2][c] / hybolic_alpha
+                            for c in range(0, self.layer1_size): deriv_syn1neg_tmp_arr[c] = self.syn1neg[l2][
+                                                                                                c] / hybolic_alpha
                             if hybolic_gamma * hybolic_gamma - 1 < 0.00001:
                                 hybolic_gamma += 0.001
                             deriv_syn0_tmp_cof = g * 4 / hybolic_beta / sqrt(hybolic_gamma * hybolic_gamma - 1)
                             for c in range(0, self.layer1_size):
                                 deriv_syn0_poincare[c] = deriv_syn0_tmp_cof * (
-                                            deriv_syn1neg_tmp_arr[c] - deriv_syn0_tmp_arr[c])
+                                        deriv_syn1neg_tmp_arr[c] - deriv_syn0_tmp_arr[c])
                             if deriv_syn0_poincare[0] == 0:
                                 for c in range(0, self.layer1_size):
                                     if deriv_syn0_poincare[c] == 0:
                                         deriv_syn0_poincare[c] = 0.00001
 
                             deriv_syn0_tmp_cof = hybolic_alpha * hybolic_alpha / 4
-                            # print("deriv_syn0_tmp_cof------------------>"+str(deriv_syn0_tmp_cof))
                             for c in range(0, self.layer1_size): deriv_syn0_poincare[c] = deriv_syn0_tmp_cof * \
                                                                                           deriv_syn0_poincare[c]
                             for c in range(0, self.layer1_size): neu1e[c] += deriv_syn0_poincare[c]
                             deriv_syn0_tmp_cof = 0
 
-                            # 负采样点
-                            '''deriv_syn1neg_tmp_cof = 0
-                            for c in range(0, self.layer1_size): deriv_syn1neg_tmp_cof += self.wv.syn0[l1][c] * self.syn1neg[l2][c]
-                            deriv_syn1neg_tmp_cof = float(
-                                (hybolic_syn0_norm - 2 * deriv_syn1neg_tmp_cof + 1) / hybolic_beta / hybolic_beta)
-                            for c in range(0, self.layer1_size): deriv_syn1neg_tmp_arr[c] = self.syn1neg[l2][c] * deriv_syn1neg_tmp_cof
-                            for c in range(0, self.layer1_size): deriv_syn0_tmp_arr[c] = self.wv.syn0[l1][c]/ hybolic_beta
-                            deriv_syn1neg_tmp_cof = g * 4 / hybolic_alpha / sqrt(hybolic_gamma * hybolic_gamma - 1)
-                            for c in range(0, self.layer1_size): deriv_syn1neg_poincare[c] = deriv_syn1neg_tmp_cof * (
-                                          deriv_syn0_tmp_arr[c] - deriv_syn1neg_tmp_arr[c])
-                            if (deriv_syn1neg_poincare[0] == 0):
-                                for c in range(0, self.layer1_size):
-                                    if deriv_syn1neg_poincare[c] == 0:
-                                        deriv_syn1neg_poincare[c] = 0.00001
-
-                            deriv_syn1neg_tmp_cof = hybolic_beta * hybolic_beta / 4
-                            for c in range(0, self.layer1_size): deriv_syn1neg_poincare[c] = deriv_syn1neg_tmp_cof * deriv_syn1neg_poincare[c]
-                            for c in range(0, self.layer1_size): map_tmp_arr[c] = self.syn1neg[l2][c]
-
-                            for k in range(0, G):
-                                deriv_syn1neg_poincare += z[k * len(self.wv.vocab) + l2] * dot(gpar[k][0], gpar[k][3])
-                            map_arr = exponential_map(map_tmp_arr, deriv_syn1neg_poincare, self.layer1_size)
-                            for c in range(0, self.layer1_size): self.syn1neg[l2][c]= map_arr[c]
-
-                            i = model.wv.vocab.get(self.wv.index2word[word],-1)
-                            if i!=-1:
-                                l3=i[index]
-                                for c in range(0, model.layer1_size): map_tmp_arr[c] = model.syn1neg[l3][c]
-                                map_arr = exponential_map(map_tmp_arr, deriv_syn1neg_poincare,model.layer1_size)
-                                model.syn1neg[l3]=map_arr'''
-                    # 对面网络
-                    i=link.get(self.wv.index2word[l1],-1)
-                    #print("i-------------------->",i)
+                    i = link.get(self.wv.index2word[l1], -1)
                     if i != -1:
-                        #self.wv.vocab[self.wv.index2word[word_index]].count
-
-                        i_= model_.wv.vocab.get(i,-1)
-                        #print("i_---------------->",i_)
+                        i_ = model_.wv.vocab.get(i, -1)
                         if i_ != -1:
                             l3 = i_.index
                             map_tmp_arr = model_.wv.syn0[l3]
                             map_arr = exponential_map(map_tmp_arr, neu1e, model_.layer1_size)
                             model_.wv.syn0[l3] = map_arr
-                    # 本网络的
                     for k in range(0, G):
-                        #print(z)
                         neu1e += z[k * len(self.wv.vocab) + l1] * dot(gpar[k][0], gpar[k][3])
                     map_tmp_arr = self.wv.syn0[l1]
                     map_arr = exponential_map(map_tmp_arr, neu1e, self.layer1_size)
                     self.wv.syn0[l1] = map_arr
-                    # print("map_arr--------------->" + str(map_arr)
 
             sentence_position = sentence_position + 1
 
-            # print("sentence_position"+str(sentence_position))
-            """这个要改"""
             if sentence_position >= sentence_length - 1:
                 local_iter -= 1
                 if local_iter == 0:
@@ -611,15 +513,13 @@ class Word2Vec(object):
                     model = MixGHD.MGHD(data=B, G=G)
                     """返回的需要的list"""
                     gpar = ro.r["slot"](model, "gpar")
+                    map0 = ro.r["slot"](model, "map")
                     z = ro.r["slot"](model, "z")
                     print("model end")
-
                 sentence_length = 0
 
-                #print('local_iter=====', local_iter)
                 continue
 
-        print('return')
         return self.wv.syn0, gpar, z, t
 
 
@@ -681,7 +581,7 @@ def read_file(file):
     # sentence= fp.readlines()
     for sentence in fp.readlines():
         temp = sentence.strip().strip('[]').split()
-        #print("temp----------->",temp)
+        # print("temp----------->",temp)
         sentences.append(temp)
     return sentences
 
@@ -696,10 +596,53 @@ def build_link(file):
     return link, link1
 
 
+def gradient(syn, index, gpar, d, f):
+    C = []
+    for i in range(len(syn)):
+        theta = np.mat(syn[i]).T
+        brackets = []
+        pis = gpar[-1]
+        for g in range(d):
+            para = gpar[g]
+            mu = np.mat(para[0]).T
+            beta = np.mat(para[1]).T
+            delta = np.mat(para[3])
+            omega = int(para[2][0])
+            r = int(para[2][1])
+            zeta = r - d / 2
+            delta1 = (theta - mu).T.dot(delta.I).dot(theta - mu)
+            delta2 = delta1[0, 0] + omega
 
+            part1_ = beta + zeta / delta2 * theta
+            part1 = delta.I.dot(part1_)
 
+            v = omega + beta.T.dot(delta.I).dot(beta)
+            v = v[0, 0]
+            bessel1 = jn(zeta, np.sqrt(v * delta2))
+            bessel2 = jn(zeta - 1, np.sqrt(v * delta2))
+            part2_1 = zeta / delta2
+            part2_2 = np.sqrt(v / delta2) * (bessel1 / bessel2)
+            part2 = (part2_1 + part2_2) * delta.I * theta
+            brackets.append(part1 - part2)
 
+        c = np.mat(np.zeros(np.shape(theta)))
+        for j in range(d):
+            c -= pis[j] * brackets[j]
+        C.append(c)
+        c = c[0, 0]
 
+    if f == 0:
+        file = open("C.txt", 'w')
+    else:
+        file = open("C1.txt", 'w')
+    i = 0
+    for c in C:
+        (m, n) = np.shape(c)
+        file.write(str(index[i]) + '\t')
+        for j in range(m):
+            file.write(str(c[j, 0]) + '\t')
+        file.write('\n')
+        i += 1
 
 
 def process(args):
@@ -720,18 +663,6 @@ def process(args):
 
     sentences = read_file(file)
     sentences1 = read_file(file1)
-
-    '''
-    l = len(sentence)
-    for i in range(l):
-        sentence[i] = sentence[i].strip()
-        sentence[i] = sentence[i].strip('[]')
-        sentence[i] = sentence[i].split()
-
-        sentences.append(sentence[i])
-'''
-    #print(sentences)
-
 
     iter = 60
     link, link1 = build_link(link_file)
@@ -760,13 +691,15 @@ def process(args):
                                    start_alpha=alpha)
 
     for n in range(1, iteration):
-        syn0, gpar, z, t = model.train(model_=model1, sentences=sentences, Gpar=gpar, Z=z, G=G, link=link, epochs=iter,
-                                       word_num=t,
-                                       start_alpha=alpha)
-        syn01, gpar1, z1, t1 = model1.train(model_=model, sentences=sentences1, Gpar=gpar1, G=G1, link=link1, Z=z1,
-                                            epochs=iter,
-                                            word_num=t1, start_alpha=alpha)
+        syn0, gpar, map0, z, t = model.train(model_=model1, sentences=sentences, Gpar=gpar, Z=z, G=G, link=link,
+                                             epochs=iter, word_num=t, start_alpha=alpha)
+        syn01, gpar1, map1, z1, t1 = model1.train(model_=model, sentences=sentences1, Gpar=gpar1, G=G1, link=link1,
+                                                  Z=z1, epochs=iter, word_num=t1, start_alpha=alpha)
 
+    index = model.wv.index2word
+    index1 = model1.wv.index2word
+    gradient(syn0, index, gpar, G, 0)
+    gradient(syn01, index1, gpar1, G1, 1)
 
     fp = open(output_file, 'w')
     fp.write(str(len(model.wv.index2word)) + "  " + str(model.layer1_size) + '\n')
@@ -787,7 +720,7 @@ def process(args):
     fp.close()
     endtime = time.time()
     dtime = endtime - starttime
-    print("程序运行时间：%.8s s" % dtime)  # 显示到微秒
+    print("Program running time：%.8s s" % dtime)
 
 
 # print(sentence)
@@ -862,12 +795,6 @@ def main():
                         help='Length of the random walk started at each node')
 
     args = parser.parse_args()
-    # numeric_level = getattr(logging, args.log.upper(), None)
-    # logging.basicConfig(format=LOGFORMAT)
-    # logger.setLevel(numeric_level)
-
-    # if args.debug:
-    # sys.excepthook = debug
 
     for i in range(0, EXP_TABLE_SIZE):
         temp = exp((i / float(EXP_TABLE_SIZE * 2 - 1)) * MAX_EXP)
@@ -877,10 +804,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-
-
-
-
-
