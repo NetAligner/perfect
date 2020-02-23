@@ -19,12 +19,10 @@ import time
 MAX_EXP = 9
 EXP_TABLE_SIZE = 1000
 MAX_SENTENCE_LENGTH = 80
-""""调用r语言"""
+
 import rpy2.robjects as ro
 from rpy2.robjects import numpy2ri
 from rpy2.robjects.packages import importr, data
-
-"""点，类"""
 
 
 class Vocab(object):
