@@ -68,7 +68,6 @@ class KeyedVectors(object):
 # def save_word2vec_format(self, fname, fvocab=None, binary=False, total_vec=None):
 
 MAX_WORDS_IN_BATCH = 1000
-"""迭代读取句子"""
 
 
 class read_word(object):
@@ -169,7 +168,6 @@ class Word2Vec(object):
         self.scale_vocab(trim_rule=trim_rule, update=update)
         self.finalize_vocab(update=update)
 
-    """对单词进行初始化"""
 
     def scan_vocab(self, sentences, progress_per=10000, trim_rule=None):
         """Do an initial scan of all words appearing in sentences."""
@@ -255,7 +253,6 @@ class Word2Vec(object):
         for i, word in enumerate(self.wv.index2word):
             self.wv.vocab[word].index = i
 
-        """初始化训练向量"""
 
     def reset_weights(self):
         """Reset all projection weights to an initial (untrained) state, but keep the existing vocabulary."""
@@ -509,7 +506,6 @@ class Word2Vec(object):
                     MixGHD = importr("MixGHD")
                     B = np.array(self.wv.syn0)
                     model = MixGHD.MGHD(data=B, G=G)
-                    """返回的需要的list"""
                     gpar = ro.r["slot"](model, "gpar")
                     map0 = ro.r["slot"](model, "map")
                     z = ro.r["slot"](model, "z")
